@@ -181,24 +181,13 @@ textarea.ev-text:focus{border-color:var(--green)}
     </div>
     <div id="xrefNote" class="xref-note hidden"></div>
     <div class="dp-count" id="dpCount">載入中…</div>
-    <div class="dp-list" id="dpList"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">⏳ 載入資料中…</div></div>
-  </div>
+    <div class="dp-list" id="dpList"><div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">⏳ 載入資料中…</div></div></div>
 
   <!-- Step 2 -->
   <div class="card hidden" id="reviewPanel">
     <div class="step-num">Step 2</div>
     <div class="step-title">上傳證據 &amp; AI 寫手審查</div>
     <div class="selected-dp" id="selectedDP"></div>
-    <!-- ESRS accordion only -->
-    <div class="ex-accordion esrs-acc hidden" id="esrsAccordion">
-      <div class="ex-accordion-header" id="esrsHeader">
-        <span>📗 ESRS 最佳實務揭露範例</span>
-        <svg class="chevron" id="esrsChevron" width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M2 5l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <div class="ex-accordion-body" id="esrsBody"></div>
-    </div>
     <!-- Evidence -->
     <div style="margin-top:14px">
       <label class="form-label">提供報告中的對應內容（截圖或文字）</label>
@@ -351,42 +340,6 @@ function selectDP(idx){
   if(hv(r,'idp')&&!gf(r,'idp').startsWith('無對應'))details+=`<div><strong>IFRS：</strong>${gf(r,'idp')}</div>`;
   if(hv(r,'nat'))details+=`<div style="margin-top:4px"><strong>揭露性質：</strong>${gf(r,'nat')}</div>`;
   document.getElementById('selectedDP').innerHTML=`<div class="selected-dp-title">${code}</div><div class="selected-dp-detail">${details}</div><div class="selected-dp-xrefs">${xhtml}</div>`;
-  // ESRS accordion
-  const exs=getExamples(idx);
-  const esrsAcc=document.getElementById('esrsAccordion');
-  const esrsBody=document.getElementById('esrsBody');
-  if(exs.esrs.length){
-    esrsAcc.classList.remove('hidden');
-    esrsBody.innerHTML=exs.esrs.slice(0,3).map(e=>`<div class="ex-entry">
-      <div class="ex-entry-id">📗 範例 ${e.id}</div>
-      <div class="ex-accordion-section-label">原文（英文）</div>
-      <div class="ex-entry-text" id="esrs-orig-${e.id}">${escHtml(e.text)}</div>
-      <button class="ex-translate-btn" data-exid="${e.id}">🌐 AI 翻譯為繁體中文</button>
-      <div id="esrs-zh-${e.id}" style="display:none"></div>
-    </div>`).join('');
-    esrsBody.classList.remove('open');document.getElementById('esrsChevron').classList.remove('open');
-    esrsBody.querySelectorAll('.ex-translate-btn').forEach(btn=>{
-      btn.addEventListener('click',async()=>{
-        const exid=btn.dataset.exid;const zhDiv=document.getElementById(`esrs-zh-${exid}`);
-        if(zhDiv.style.display!=='none'){zhDiv.style.display='none';btn.textContent='🌐 AI 翻譯為繁體中文';return}
-        btn.disabled=true;btn.textContent='翻譯中…';
-        try{
-          const origText=document.getElementById(`esrs-orig-${exid}`)?.textContent||'';
-          const res=await fetch(CFG.PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,
-              messages:[{role:'user',content:`請將以下永續報告揭露範例段落翻譯為繁體中文。保持專業術語準確（GHG、SBTi、TRIR 等縮寫保留原文）。直接輸出翻譯文字，不要加任何說明。
-
-${origText}`}]})});
-          const d=await res.json();const txt=d.content?.find(x=>x.type==='text')?.text||'翻譯失敗';
-          zhDiv.innerHTML=`<div class="ex-translated-text">${escHtml(txt)}</div>`;zhDiv.style.display='';
-          btn.textContent='🔼 收起中文翻譯';btn.disabled=false;
-        }catch(err){zhDiv.innerHTML=`<div style="color:var(--miss);font-size:11px;margin-top:6px">❌ ${err.message}</div>`;zhDiv.style.display='';btn.disabled=false;btn.textContent='🌐 重試翻譯';}
-      });
-    });
-  }else{esrsAcc.classList.add('hidden');}
-  document.getElementById('esrsHeader').addEventListener('click',()=>{
-    document.getElementById('esrsBody').classList.toggle('open');document.getElementById('esrsChevron').classList.toggle('open');
-  },{once:true});
   images=[];['imgPreviews1','imgPreviews2'].forEach(id=>document.getElementById(id).innerHTML='');
   document.getElementById('evTextarea1').value='';document.getElementById('evTextarea2').value='';
   document.getElementById('resultArea').innerHTML='';document.getElementById('examplesArea').innerHTML='';
@@ -422,11 +375,11 @@ async function runReview(){
   if(!curDP){alert('請先選擇資料點');return}
   const evText=document.getElementById('evTextarea1').value||document.getElementById('evTextarea2').value||'';
   if(!images.length&&!evText.trim()){alert('請上傳截圖或貼上文字作為證據');return}
-  const btn=document.getElementById('analyzeBtn');const spinner=document.getElementById('analyzeSpinner');const label=document.getElementById('analyzeBtnLabel');
-  btn.disabled=true;spinner.style.display='block';label.textContent='AI 逐項分析中…';
+  const btn=document.getElementById('analyzeBtn');const spinner=document.getElementById('analyzeSpinner');const lbl=document.getElementById('analyzeBtnLabel');
+  btn.disabled=true;spinner.style.display='block';lbl.textContent='AI 逐項分析中…';
   try{
     const r=curDP;
-    const code=hv(r,'dr')?`${gf(r,'name')} ${gf(r,'dr')} ${gf(r,'para')}`:`GRI ${gf(r,'gdisc')}`;
+    const code=hv(r,'dr')?gf(r,'name')+' '+gf(r,'dr')+' '+gf(r,'para'):'GRI '+gf(r,'gdisc');
     const dpParts=[];
     if(hv(r,'edp')&&!gf(r,'edp').startsWith('無對應'))dpParts.push('ESRS要求：'+gf(r,'edp'));
     if(hv(r,'gdp'))dpParts.push('GRI要求：'+gf(r,'gdp'));
@@ -434,8 +387,7 @@ async function runReview(){
     const exs=getExamples(curIdx);
     const hasExamples=exs.esrs.length>0;
     const exContext=exs.esrs.length?'\n\n'+exs.esrs.slice(0,2).map(e=>'【ESRS 最佳實務揭露範例】\n'+e.text.substring(0,600)).join('\n\n'):'';
-
-    const lines=[
+    const prompt=[
       '你是永續報告「寫手」專家，任務是為每個揭露子項目產出一段企業可直接使用的報告正文範本，同時融入業界最佳實務參考。',
       '',
       '【資料點識別碼】'+code,
@@ -457,40 +409,23 @@ async function runReview(){
       '',
       '第三步：為每個子項目產出一段「可直接貼入永續報告的正文段落範本」（繁體中文，100–180字）。',
       '  ★ 這是「寫手」模式——輸出的是可直接使用的報告正文，不是建議或評語。',
-      '  ◆ coverage 為 full 的子項目：',
-      '    以公司第一人稱改寫並強化原有揭露，融入從最佳實務範例學到的更精準用語與量化方式。',
-      '    範本格式：「本公司[現有做法描述]。業界領先企業[去識別化最佳實務描述]，本公司亦[呼應強化的行動或目標]。」',
-      '  ◆ coverage 為 partial 或 missing 的子項目：',
-      '    以公司第一人稱撰寫完整揭露段落，參考最佳實務範例的量化程度與揭露深度。',
-      '    partial：先保留原文精髓，再補充缺少的部分，段落連貫完整。',
-      '    missing：完整撰寫符合準則要求的揭露段落。',
+      '  ◆ coverage 為 full：以公司第一人稱改寫並強化原有揭露，融入最佳實務的量化方式與精準用語。',
+      '    範本格式：「本公司[現有做法]。業界領先企業[去識別化最佳實務]，本公司亦[強化行動]。」',
+      '  ◆ coverage 為 partial/missing：以公司第一人稱撰寫完整段落，參考最佳實務的量化深度。',
+      '    partial：保留原文精髓再補充；missing：完整撰寫。',
       '  通用要求：',
-      '  - 第一人稱：「本公司」「我們」',
-      '  - 原文有的具體數字/名稱直接沿用；缺少數字用 [數字]、[%]、[年份] 佔位',
-      '  - 引用最佳實務時【嚴禁】出現任何公司名稱，用「某歐洲大型銀行」「某全球製造企業」「某跨國科技集團」等替代',
-      '  - 【嚴禁】出現任何框架引用標記（[ESRS xx]、[IFRS S2.xx]、§xx 等）',
-      '  - 輸出的是報告正文，不是評語或建議，不要出現「建議」「應」「可進一步」等字眼',
+      '  - 第一人稱「本公司」「我們」',
+      '  - 原文數字直接沿用；缺少數字用[數字][%][年份]佔位',
+      '  - 引用最佳實務時【嚴禁】出現公司名稱，改用「某歐洲大型銀行」「某全球製造企業」等',
+      '  - 【嚴禁】框架引用標記（[ESRS xx][IFRS S2.xx]§xx等）',
+      '  - 輸出是報告正文，不是評語，禁用「建議」「應」「可進一步」',
       '',
-      '第四步：判定整體 status：full / partial / missing / na',
+      '第四步：判定整體 status：full/partial/missing/na',
       '',
-      '純 JSON 輸出：',
-      '{',
-      '  "status": "full|partial|missing|na",',
-      '  "overall_finding": "整體評估（40字內）",',
-      '  "components": [',
-      '    {',
-      '      "name": "子項目名稱（10字內）",',
-      '      "evidence_text": "報告原文逐字引用（若無則填空字串）",',
-      '      "coverage": "full|partial|missing",',
-      '      "suggestion": "可直接貼入報告的正文段落範本（100–180字）"',
-      '    }',
-      '  ]',
-      '}',
-    ];
-    const prompt=lines.join('\n');
-
+      '純 JSON 輸出：{"status":"full|partial|missing|na","overall_finding":"整體評估（40字內）","components":[{"name":"子項目名稱（10字內）","evidence_text":"報告原文逐字引用（若無則填空字串）","coverage":"full|partial|missing","suggestion":"可直接貼入報告的正文段落範本（100–180字）"}]}',
+    ].join('\n');
     const content=[];
-    images.forEach(img=>{const base64=img.data.split(',')[1];const mt=img.data.split(';')[0].split(':')[1];content.push({type:'image',source:{type:'base64',media_type:mt,data:base64}})});
+    images.forEach(img=>{const b=img.data.split(',')[1];const mt=img.data.split(';')[0].split(':')[1];content.push({type:'image',source:{type:'base64',media_type:mt,data:b}})});
     content.push({type:'text',text:prompt});
     const res=await fetch(CFG.PROXY,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,messages:[{role:'user',content}]})});
@@ -499,7 +434,7 @@ async function runReview(){
     const jm=raw.match(/\{[\s\S]*\}/);if(!jm)throw new Error('回應格式錯誤');
     showResult(JSON.parse(jm[0]),hasExamples);
   }catch(e){document.getElementById('resultArea').innerHTML='<div style="color:var(--miss);margin-top:12px;font-size:13px">❌ '+e.message+'</div>';}
-  btn.disabled=false;spinner.style.display='none';label.textContent='🔍 AI 逐項審查 · 對應原文 · 產出報告段落範本';
+  btn.disabled=false;spinner.style.display='none';lbl.textContent='🔍 AI 逐項審查 · 對應原文 · 產出報告段落範本';
 }
 
 function showResult(p,hasExamples){
@@ -514,25 +449,21 @@ function showResult(p,hasExamples){
     const evHtml=comp.evidence_text?'<div class="comp-evidence-quote">'+escHtml(comp.evidence_text)+'</div>':'<div class="comp-evidence-none">報告中未發現相關對應內容</div>';
     const isFull=comp.coverage==='full';
     const sugLabel='📋 報告段落範本'+(isFull?(hasExamples?' · 已融入業界最佳實務對標':''):(hasExamples?' · 參考業界最佳實務補強':''));
-    const sugBoxCls='comp-sug-text'+(isFull?' comp-sug-benchmark':'');
-    const sugHtml=comp.suggestion?'<div class="comp-sug"><div class="comp-sug-label '+(isFull?'sug-label-benchmark':'')+'">'+sugLabel+'</div><div class="'+sugBoxCls+'">'+escHtml(comp.suggestion)+'</div></div>':'';
+    const sugCls='comp-sug-text'+(isFull?' comp-sug-benchmark':'');
+    const sugHtml=comp.suggestion?'<div class="comp-sug"><div class="comp-sug-label '+(isFull?'sug-label-benchmark':'')+'">'+sugLabel+'</div><div class="'+sugCls+'">'+escHtml(comp.suggestion)+'</div></div>':'';
     cardsHtml+='<div class="comp-card"><div class="comp-header"><span class="comp-icon">'+cv.icon+'</span><span class="comp-name">'+escHtml(comp.name)+'</span><span class="comp-badge '+cv.cls+'">'+cv.label+'</span></div><div class="comp-body"><div class="comp-evidence-label">📄 報告原文引用</div>'+evHtml+sugHtml+'</div></div>';
   });
   const actionsHtml=allSugText?'<div class="sug-actions"><button class="sug-btn primary" id="copyAllBtn">📋 複製所有段落範本</button><button class="sug-btn" id="dlAllBtn">⬇ 下載 .txt</button></div>':'';
   document.getElementById('resultArea').innerHTML='<div class="result-outer"><div class="result-status-row"><span class="result-badge" style="background:'+sc.bg+';color:'+sc.fg+'">'+sc.label+'</span></div><div class="result-finding">'+escHtml(p.overall_finding||'—')+'</div><div class="result-section-label">逐項對應分析與報告段落範本</div>'+cardsHtml+actionsHtml+'</div>';
   document.getElementById('copyAllBtn')?.addEventListener('click',()=>{
-    const doCopy=()=>{
-      try{const ta=document.createElement('textarea');ta.value=allSugText;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}
-      const btn=document.getElementById('copyAllBtn');
-      if(btn){btn.textContent='✅ 已複製';btn.classList.add('copied');btn.classList.remove('primary');setTimeout(()=>{btn.textContent='📋 複製所有段落範本';btn.classList.remove('copied');btn.classList.add('primary')},2500);}
-    };
+    const doCopy=()=>{try{const ta=document.createElement('textarea');ta.value=allSugText;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}catch(e){}
+      const b=document.getElementById('copyAllBtn');if(b){b.textContent='✅ 已複製';b.classList.add('copied');b.classList.remove('primary');setTimeout(()=>{b.textContent='📋 複製所有段落範本';b.classList.remove('copied');b.classList.add('primary')},2500);}};
     navigator.clipboard?navigator.clipboard.writeText(allSugText).then(doCopy).catch(doCopy):doCopy();
   });
   document.getElementById('dlAllBtn')?.addEventListener('click',()=>{
-    const r=curDP;const code=(hv(r,'dr')?gf(r,'name')+'_'+gf(r,'dr'):'GRI_'+gf(r,'gdisc')).replace(/\s+/g,'_');
-    const header='ZC RepRadar | 報告段落範本\n資料點：'+code+'\n'+'─'.repeat(40)+'\n\n';
-    const blob=new Blob([header+allSugText],{type:'text/plain;charset=utf-8'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ZC_ReportDraft_'+code+'.txt';a.click();
+    const r=curDP;const c=(hv(r,'dr')?gf(r,'name')+'_'+gf(r,'dr'):'GRI_'+gf(r,'gdisc')).replace(/\s+/g,'_');
+    const blob=new Blob(['ZC RepRadar | 報告段落範本\n資料點：'+c+'\n'+'─'.repeat(40)+'\n\n'+allSugText],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ZC_ReportDraft_'+c+'.txt';a.click();
   });
 }
 
